@@ -1,0 +1,34 @@
+model Cart {
+  id           Int       @id @default(autoincrement())
+  partnerId    Int
+  veterinaryId Int?
+  userId       Int?      @unique
+  dateOrder    DateTime  @default(now())
+  state        CartState @default(draft)
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  partner   Partner    @relation(fields: [partnerId], references: [id])
+  veterinary Veterinary? @relation(fields: [veterinaryId], references: [id])
+  user      User?      @relation(fields: [userId], references: [id])
+
+  lines CartLine[]
+
+  @@map("carts")
+}
+
+model CartLine {
+  id          Int    @id @default(autoincrement())
+  cartId      Int
+  productId   Int
+  productName String?
+  quantity    Float  @default(1.0)
+  priceUnit   Float?
+  subtotal    Float?
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("cart_lines")
+}

@@ -1,0 +1,80 @@
+model Veterinary {
+  id               Int            @id @default(autoincrement())
+  odooVeterinaryId Int?
+  name             String
+  tagline          String?
+  phone            String?
+  email            String?
+  website          String?
+  address          String?
+  city             String?
+  state            String?
+  country          String?
+  taxId            String?
+  licenseNumber    String?
+  latitude         Float?
+  longitude        Float?
+  rating           Float          @default(0.0)
+  type             VeterinaryType @default(clinic)
+  isEmergency      Boolean        @default(false)
+  isHospital       Boolean        @default(false)
+  isOpen           Boolean        @default(true)
+  isActive         Boolean        @default(true)
+  notes            String?
+  logo             String?
+  coverImage       String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  staffUserId  Int?    @unique
+  staffUser    User?   @relation("VeterinaryStaff", fields: [staffUserId], references: [id])
+
+  services       Service[]
+  schedules      Schedule[]
+  socialLinks    SocialLink[]
+  veterinaryUsers VeterinaryUser[]
+  products       Product[]
+  pets           Pet[]
+  specialists    Specialist[]
+  appointments   Appointment[]
+  adoptions      Adoption[]
+  medicalRecords MedicalRecord[]
+  partners       Partner[]       @relation("VeterinaryClients")
+  carts          Cart[]
+
+  @@map("veterinaries")
+}
+
+model Service {
+  id           Int    @id @default(autoincrement())
+  name         String
+  veterinaryId Int
+
+  veterinary Veterinary @relation(fields: [veterinaryId], references: [id], onDelete: Cascade)
+
+  @@map("services")
+}
+
+model Schedule {
+  id           Int        @id @default(autoincrement())
+  veterinaryId Int
+  dayOfWeek    DayOfWeek
+  openTime     String?    @default("08:00")
+  closeTime    String?    @default("17:00")
+  isClosed     Boolean    @default(false)
+
+  veterinary Veterinary @relation(fields: [veterinaryId], references: [id], onDelete: Cascade)
+
+  @@map("schedules")
+}
+
+model SocialLink {
+  id           Int    @id @default(autoincrement())
+  veterinaryId Int
+  name         String
+  url          String
+
+  veterinary Veterinary @relation(fields: [veterinaryId], references: [id], onDelete: Cascade)
+
+  @@map("social_links")
+}

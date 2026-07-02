@@ -1,0 +1,49 @@
+model Pet {
+  id            Int       @id @default(autoincrement())
+  odooPetId     Int?
+  name          String
+  petType       PetType   @default(adoption)
+  species       Species   @default(dog)
+  breed         String?
+  birthDate     DateTime?
+  sex           Sex       @default(unknown)
+  weight        Float     @default(0.0)
+  color         String?
+  microchipId   String?
+  status        PetStatus @default(available)
+  description   String?
+  veterinaryId  Int
+  ownerId       Int?
+  rescuedAt     DateTime?
+  adoptedAt     DateTime?
+  sterilized    Boolean   @default(false)
+  allergies     String[]
+  vaccinations  String[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  veterinary Veterinary @relation(fields: [veterinaryId], references: [id])
+  owner      Partner?  @relation("PetOwner", fields: [ownerId], references: [id])
+
+  images        PetImage[]
+  medicalRecords MedicalRecord[]
+  appointments  Appointment[]
+  vaccines      Vaccine[]
+  surgeries     Surgery[]
+  prescriptions Prescription[]
+  adoptions     Adoption[]
+
+  @@map("pets")
+}
+
+model PetImage {
+  id        Int    @id @default(autoincrement())
+  petId     Int
+  imageUrl  String?
+  imageData String?
+  sequence  Int    @default(10)
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@map("pet_images")
+}

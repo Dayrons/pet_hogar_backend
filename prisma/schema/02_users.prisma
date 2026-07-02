@@ -1,0 +1,56 @@
+model User {
+  id             Int       @id @default(autoincrement())
+  odooUserId     Int?
+  name           String
+  email          String    @unique
+  password       String
+  phone          String?
+  address        String?
+  photoUrl       String?
+  role           Role      @default(ADOPTER)
+  veterinaryId   Int?
+  isActive       Boolean   @default(true)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  veterinaryUser  VeterinaryUser?
+  veterinaryStaff Veterinary?       @relation("VeterinaryStaff")
+  partner         Partner?
+  cart            Cart?
+
+  @@map("users")
+}
+
+model Partner {
+  id            Int       @id @default(autoincrement())
+  odooPartnerId Int?
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  city          String?
+  userId        Int?      @unique
+  veterinaryId  Int?
+
+  user       User?       @relation(fields: [userId], references: [id])
+  veterinary Veterinary? @relation("VeterinaryClients", fields: [veterinaryId], references: [id])
+  pets        Pet[]      @relation("PetOwner")
+  adoptions   Adoption[] @relation("Adopter")
+  carts       Cart[]
+
+  @@map("partners")
+}
+
+model VeterinaryUser {
+  id            Int       @id @default(autoincrement())
+  userId        Int       @unique
+  veterinaryId  Int
+  role          Role
+  isActive      Boolean   @default(true)
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  veterinary Veterinary @relation(fields: [veterinaryId], references: [id], onDelete: Cascade)
+  specialist Specialist?
+
+  @@map("veterinary_users")
+}

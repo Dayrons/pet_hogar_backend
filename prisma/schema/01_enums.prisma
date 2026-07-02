@@ -1,0 +1,106 @@
+enum Role {
+  SUPER_ADMIN
+  VET_ADMIN
+  VETERINARIAN
+  STAFF
+  ADOPTER
+}
+
+enum VeterinaryType {
+  clinic
+  shelter
+  store
+  emergency
+  combined
+}
+
+enum PetType {
+  adoption
+  client
+}
+
+enum Species {
+  dog
+  cat
+  bird
+  reptile
+  rodent
+  fish
+  other
+}
+
+enum Sex {
+  male
+  female
+  unknown
+}
+
+enum PetStatus {
+  available
+  in_treatment
+  adopted
+  injured
+  lost
+  quarantined
+}
+
+enum VisitType {
+  checkup
+  emergency
+  surgery
+  grooming
+  dental
+  follow_up
+  vaccination
+  lab_test
+  hospitalization
+}
+
+enum AppointmentStatus {
+  scheduled
+  confirmed
+  in_progress
+  completed
+  cancelled
+  no_show
+}
+
+enum AdoptionStatus {
+  pending
+  approved
+  rejected
+  completed
+  cancelled
+}
+
+enum CartState {
+  draft
+  confirmed
+  cancelled
+}
+
+enum ProductCategory {
+  food
+  medication
+  accessory
+  toy
+  hygiene
+  supplement
+  equipment
+}
+
+enum DayOfWeek {
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+  sunday
+}
+
+enum FileType {
+  image
+  document
+  lab
+}

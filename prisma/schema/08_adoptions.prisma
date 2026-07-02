@@ -1,0 +1,20 @@
+model Adoption {
+  id             Int             @id @default(autoincrement())
+  petId          Int
+  adopterId      Int
+  veterinaryId   Int
+  requestDate    DateTime        @default(now())
+  approvedDate   DateTime?
+  status         AdoptionStatus  @default(pending)
+  notes          String?
+  adoptionFee    Float           @default(0.0)
+  homeCheckDone  Boolean         @default(false)
+  homeCheckNotes String?
+  signedContract Boolean         @default(false)
+
+  pet       Pet        @relation(fields: [petId], references: [id], onDelete: Cascade)
+  adopter   Partner    @relation("Adopter", fields: [adopterId], references: [id])
+  veterinary Veterinary @relation(fields: [veterinaryId], references: [id])
+
+  @@map("adoptions")
+}

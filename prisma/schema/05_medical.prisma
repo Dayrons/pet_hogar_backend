@@ -1,0 +1,114 @@
+model MedicalRecord {
+  id               Int       @id @default(autoincrement())
+  odooRecordId     Int?
+  petId            Int
+  veterinaryId     Int
+  veterinarianName String
+  visitDate        DateTime  @default(now())
+  visitType        VisitType @default(checkup)
+  subjective       String?
+  objective        String?
+  assessment       String?
+  plan             String?
+  temperature      Float?
+  heartRate        Int?
+  respiratoryRate  Int?
+  weight           Float?
+  bodyCondition    Int?
+  diagnosis        String[]
+  procedures       String[]
+  notes            String?
+  followUpDate     DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  pet        Pet       @relation(fields: [petId], references: [id], onDelete: Cascade)
+  veterinary Veterinary @relation(fields: [veterinaryId], references: [id])
+
+  attachments  MedicalAttachment[]
+  surgeries    Surgery[]
+  prescriptions Prescription[]
+
+  @@map("medical_records")
+}
+
+model MedicalAttachment {
+  id       Int       @id @default(autoincrement())
+  recordId Int
+  name     String?
+  fileData String?
+  fileType FileType?
+
+  record MedicalRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@map("medical_attachments")
+}
+
+model Vaccine {
+  id                Int       @id @default(autoincrement())
+  petId             Int
+  vaccineName       String
+  batchNumber       String?
+  administeredAt    DateTime  @default(now())
+  expiresAt         DateTime?
+  veterinarianName  String?
+  manufacturer      String?
+  nextDoseDate      DateTime?
+  notes             String?
+
+  pet Pet @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  @@map("vaccines")
+}
+
+model Surgery {
+  id                 Int       @id @default(autoincrement())
+  petId              Int
+  recordId           Int
+  surgeryType        String?
+  startTime          DateTime
+  endTime            DateTime?
+  surgeonName        String?
+  anesthesia         String?
+  complications      String?
+  outcome            String?
+  postOpInstructions String?
+
+  pet    Pet           @relation(fields: [petId], references: [id], onDelete: Cascade)
+  record MedicalRecord @relation(fields: [recordId], references: [id], onDelete: Cascade)
+
+  @@map("surgeries")
+}
+
+model Prescription {
+  id               Int       @id @default(autoincrement())
+  recordId         Int?
+  petId            Int
+  veterinarianName String
+  issuedAt         DateTime  @default(now())
+  validUntil       DateTime?
+  instructions     String?
+  isDispensed      Boolean   @default(false)
+
+  record MedicalRecord? @relation(fields: [recordId], references: [id], onDelete: Cascade)
+  pet    Pet           @relation(fields: [petId], references: [id], onDelete: Cascade)
+
+  lines PrescriptionLine[]
+
+  @@map("prescriptions")
+}
+
+model PrescriptionLine {
+  id              Int    @id @default(autoincrement())
+  prescriptionId  Int
+  productName     String?
+  dosage          String?
+  frequency       String?
+  duration        String?
+  quantity        Int?
+  instructions    String?
+
+  prescription Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+
+  @@map("prescription_lines")
+}

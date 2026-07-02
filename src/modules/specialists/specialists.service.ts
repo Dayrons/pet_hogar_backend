@@ -1,0 +1,57 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
+
+@Injectable()
+export class SpecialistsService {
+  constructor(private prisma: PrismaService) {}
+
+  async findAll(query: { veterinaryId?: string; search?: string }) {
+    const where: any = {};
+    if (query.veterinaryId) where.veterinaryId = parseInt(query.veterinaryId);
+    if (query.search) where.name = { contains: query.search, mode: 'insensitive' };
+
+    const specialists = await this.prisma.specialist.findMany({
+      where,
+      include: { specialties: { include: { specialty: true } } },
+    });
+
+    return specialists.map((s) => ({
+      id: s.id,
+      name: s.name,
+      specialty: s.specialties.map((ss) => ss.specialty.name),
+      phone: s.phone || '',
+      email: s.email || '',
+      licenseNumber: s.licenseNumber || '',
+      veterinaryId: s.veterinaryId,
+    }));
+  }
+
+  async create(data: any) {
+    const specialist = await this.prisma.specialist.create({
+      data: {
+        name: data.name,
+        phone: data.phone,
+        email: data.email,
+        licenseNumber: data.licenseNumber,
+        veterinaryId: parseInt(data.veterinaryId),
+        specialties: data.specialtyIds?.length
+          ? { create: data.specialtyIds.map((id: number) => ({ specialtyId: id })) }
+          : undefined,
+      },
+    });
+    return { success: true, id: specialist.id };
+  }
+
+  async update(id: number, data: any) {
+    const specialist = await this.prisma.specialist.findUnique({ where: { id } });
+    if (!specialist) throw new NotFoundException('Specialist not found');
+
+    await this.prisma.specialist.update({ where: { id }, data: { name: data.name, phone: data.phone, email: data.email, licenseNumber: data.licenseNumber } });
+    return { success: true };
+  }
+
+  async remove(id: number) {
+    await this.prisma.specialist.delete({ where: { id } });
+    return { success: true };
+  }
+}

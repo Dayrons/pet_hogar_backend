@@ -1,0 +1,39 @@
+model Specialty {
+  id          Int     @id @default(autoincrement())
+  name        String
+  code        String?
+  description String?
+
+  specialistSpecialties SpecialistSpecialty[]
+
+  @@map("specialties")
+}
+
+model Specialist {
+  id               Int    @id @default(autoincrement())
+  veterinaryUserId Int?   @unique
+  name             String
+  phone            String?
+  email            String?
+  licenseNumber    String?
+  veterinaryId     Int
+
+  veterinaryUser VeterinaryUser? @relation(fields: [veterinaryUserId], references: [id])
+  veterinary     Veterinary      @relation(fields: [veterinaryId], references: [id])
+
+  specialties  SpecialistSpecialty[]
+  appointments Appointment[]
+
+  @@map("specialists")
+}
+
+model SpecialistSpecialty {
+  specialistId Int
+  specialtyId  Int
+
+  specialist Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  specialty  Specialty  @relation(fields: [specialtyId], references: [id], onDelete: Cascade)
+
+  @@id([specialistId, specialtyId])
+  @@map("specialist_specialties")
+}

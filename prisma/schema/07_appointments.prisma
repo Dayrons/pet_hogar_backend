@@ -1,0 +1,20 @@
+model Appointment {
+  id              Int               @id @default(autoincrement())
+  petId           Int
+  veterinaryId    Int
+  specialistId    Int?
+  appointmentDate DateTime
+  duration        Float             @default(1.0)
+  visitType       String            @default("checkup")
+  status          AppointmentStatus @default(scheduled)
+  reason          String?
+  notes           String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  pet        Pet         @relation(fields: [petId], references: [id])
+  veterinary Veterinary  @relation(fields: [veterinaryId], references: [id])
+  specialist Specialist? @relation(fields: [specialistId], references: [id])
+
+  @@map("appointments")
+}
