@@ -3,11 +3,12 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './shared/filters/http-exception.filter';
-import { ResponseTransformInterceptor } from './shared/interceptors/response-transform.interceptor';
+import { json } from 'express';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
+  app.use(json({ limit: '10mb' }));
 
   app.enableCors({
     origin: '*',
@@ -26,7 +27,6 @@ async function bootstrap() {
   );
 
   app.useGlobalFilters(new AllExceptionsFilter());
-  app.useGlobalInterceptors(new ResponseTransformInterceptor());
 
   const config = new DocumentBuilder()
     .setTitle('PetHogar API')

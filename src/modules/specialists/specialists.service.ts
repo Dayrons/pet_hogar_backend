@@ -26,6 +26,26 @@ export class SpecialistsService {
     }));
   }
 
+  async syncFromOdoo(payload: any, action: string): Promise<void> {
+    const data: any = {
+      name: payload.name,
+      phone: payload.phone || '',
+      email: payload.email || '',
+      licenseNumber: payload.license_number || '',
+      veterinaryId: payload.veterinary_id,
+    };
+
+    const existing = await this.prisma.specialist.findFirst({
+      where: { name: data.name, veterinaryId: data.veterinaryId },
+    });
+
+    if (action === 'create' && !existing) {
+      await this.prisma.specialist.create({ data });
+    } else if (action === 'update' && existing) {
+      await this.prisma.specialist.update({ where: { id: existing.id }, data });
+    }
+  }
+
   async create(data: any) {
     const specialist = await this.prisma.specialist.create({
       data: {

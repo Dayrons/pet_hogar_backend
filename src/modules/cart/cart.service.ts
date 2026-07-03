@@ -1,10 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FileUploadService } from '../../shared/services/file-upload.service';
 
 @Injectable()
 export class CartService {
   constructor(
     private prisma: PrismaService,
+    private fileUpload: FileUploadService,
   ) {}
 
   async getCart(userId: number) {
@@ -14,7 +16,13 @@ export class CartService {
         lines: {
           include: {
             product: {
-              select: { name: true, requiresPrescription: true, veterinaryId: true, veterinary: { select: { name: true } } },
+              select: {
+                name: true,
+                requiresPrescription: true,
+                veterinaryId: true,
+                veterinary: { select: { name: true } },
+                images: { take: 1, orderBy: { sequence: 'asc' }, select: { imageUrl: true } },
+              },
             },
           },
         },
@@ -30,7 +38,7 @@ export class CartService {
       quantity: l.quantity,
       price: l.priceUnit || 0,
       total: l.subtotal || 0,
-      imageUrl: '',
+      imageUrl: this.fileUpload.getFullUrl(l.product.images[0]?.imageUrl) || '',
       veterinaryId: l.product.veterinaryId,
       veterinaryName: l.product.veterinary.name,
       requiresPrescription: l.product.requiresPrescription,

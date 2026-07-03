@@ -2,6 +2,7 @@ import { Injectable, UnauthorizedException, ConflictException, Logger } from '@n
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FileUploadService } from '../../shared/services/file-upload.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -13,6 +14,7 @@ export class AuthService {
   constructor(
     private prisma: PrismaService,
     private jwtService: JwtService,
+    private fileUpload: FileUploadService,
   ) {}
 
   async login(dto: LoginDto) {
@@ -54,7 +56,7 @@ export class AuthService {
   }
 
   async getProfile(userId: number) {
-    return this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -68,6 +70,12 @@ export class AuthService {
         createdAt: true,
       },
     });
+    if (!user) return null;
+    return {
+      ...user,
+      role: user.role.toLowerCase(),
+      photoUrl: this.fileUpload.getFullUrl(user.photoUrl),
+    };
   }
 
   async changePassword(userId: number, dto: ChangePasswordDto) {
@@ -102,7 +110,7 @@ export class AuthService {
         email: user.email,
         phone: user.phone || '',
         address: user.address || '',
-        photoUrl: user.photoUrl || '',
+        photoUrl: this.fileUpload.getFullUrl(user.photoUrl) || '',
         role: user.role.toLowerCase(),
         veterinaryId: user.veterinaryId || null,
         veterinaryName: veterinary?.name || '',

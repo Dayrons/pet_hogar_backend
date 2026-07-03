@@ -1,10 +1,10 @@
-import crypto from 'crypto';
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { PrismaService } from '../../prisma/prisma.service';
-
-type SyncEntity = 'user' | 'veterinary' | 'pet' | 'product' | 'specialist' | 'adoption';
-type SyncAction = 'create' | 'update' | 'delete';
+import { VeterinariesService } from '../veterinaries/veterinaries.service';
+import { PetsService } from '../pets/pets.service';
+import { ProductsService } from '../products/products.service';
+import { UsersService } from '../users/users.service';
+import { SpecialistsService } from '../specialists/specialists.service';
 
 @Injectable()
 export class SyncService {
@@ -14,28 +14,36 @@ export class SyncService {
   private readonly odooDb: string;
   private readonly odooUser: string;
   private readonly odooPassword: string;
+  private readonly handlers: Record<string, (payload: any, action: string) => Promise<void>>;
 
   constructor(
     private configService: ConfigService,
-    private prisma: PrismaService,
+    private veterinariesService: VeterinariesService,
+    private petsService: PetsService,
+    private productsService: ProductsService,
+    private usersService: UsersService,
+    private specialistsService: SpecialistsService,
   ) {
     this.odooBaseUrl = this.configService.get<string>('ODOO_BASE_URL')!;
     this.odooDb = this.configService.get<string>('ODOO_DB')!;
     this.odooUser = this.configService.get<string>('ODOO_USER')!;
     this.odooPassword = this.configService.get<string>('ODOO_PASSWORD')!;
+    this.handlers = {
+      veterinary: (p, a) => this.veterinariesService.syncFromOdoo(p, a),
+      pet: (p, a) => this.petsService.syncFromOdoo(p, a),
+      product: (p, a) => this.productsService.syncFromOdoo(p, a),
+      user: (p, a) => this.usersService.syncFromOdoo(p, a),
+      specialist: (p, a) => this.specialistsService.syncFromOdoo(p, a),
+    };
   }
 
   private async authenticateOdoo(): Promise<string> {
     if (this.odooToken) return this.odooToken;
-
     try {
       const res = await fetch(`${this.odooBaseUrl}/api/v1/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: this.odooUser,
-          password: this.odooPassword,
-        }),
+        body: JSON.stringify({ email: this.odooUser, password: this.odooPassword }),
       });
       const json = await res.json() as any;
       this.odooToken = json.data?.token || json.token;
@@ -48,8 +56,7 @@ export class SyncService {
 
   private async odooRequest(path: string, options: RequestInit = {}): Promise<any> {
     const token = await this.authenticateOdoo();
-    const url = `${this.odooBaseUrl}${path}`;
-    const res = await fetch(url, {
+    const res = await fetch(`${this.odooBaseUrl}${path}`, {
       ...options,
       headers: {
         'Content-Type': 'application/json',
@@ -64,9 +71,8 @@ export class SyncService {
     return res.json();
   }
 
-  async pushToOdoo(entity: SyncEntity, action: SyncAction, data: any, odooIdField?: string): Promise<void> {
+  async pushToOdoo(entity: string, action: string, data: any, odooIdField?: string): Promise<void> {
     const existingOdooId = odooIdField ? data[odooIdField] : null;
-
     try {
       if (action === 'create' || (action === 'update' && !existingOdooId)) {
         const result = await this.odooRequest(`/api/v1/${entity}s`, {
@@ -93,161 +99,15 @@ export class SyncService {
 
   async handleWebhook(entity: string, action: string, payload: any): Promise<void> {
     this.logger.log(`Webhook received: ${entity}.${action} from Odoo`);
-
+    const handler = this.handlers[entity];
+    if (!handler) {
+      this.logger.warn(`Unknown entity type in webhook: ${entity}`);
+      return;
+    }
     try {
-      switch (entity) {
-        case 'veterinary': {
-          const data = this.mapOdooVeterinary(payload);
-          const existing = data.odooVeterinaryId
-            ? await this.prisma.veterinary.findFirst({ where: { odooVeterinaryId: data.odooVeterinaryId } })
-            : null;
-
-          if (action === 'create' || (action === 'update' && !existing)) {
-            await this.prisma.veterinary.upsert({
-              where: { id: existing?.id || 0 },
-              create: data,
-              update: data,
-            });
-          } else if (action === 'update' && existing) {
-            await this.prisma.veterinary.update({ where: { id: existing.id }, data });
-          }
-          break;
-        }
-        case 'pet': {
-          const data = this.mapOdooPet(payload);
-          const existing = data.odooPetId
-            ? await this.prisma.pet.findFirst({ where: { odooPetId: data.odooPetId } })
-            : null;
-
-          if (action === 'create' || (action === 'update' && !existing)) {
-            await this.prisma.pet.upsert({
-              where: { id: existing?.id || 0 },
-              create: data,
-              update: data,
-            });
-          } else if (action === 'update' && existing) {
-            await this.prisma.pet.update({ where: { id: existing.id }, data });
-          }
-          break;
-        }
-        case 'product': {
-          const data = this.mapOdooProduct(payload);
-          const existing = data.odooProductId
-            ? await this.prisma.product.findFirst({ where: { odooProductId: data.odooProductId } })
-            : null;
-
-          if (action === 'create' || (action === 'update' && !existing)) {
-            await this.prisma.product.upsert({
-              where: { id: existing?.id || 0 },
-              create: data,
-              update: data,
-            });
-          } else if (action === 'update' && existing) {
-            await this.prisma.product.update({ where: { id: existing.id }, data });
-          }
-          break;
-        }
-        case 'user': {
-          const data = this.mapOdooUser(payload);
-          const existing = data.odooUserId
-            ? await this.prisma.user.findFirst({ where: { odooUserId: data.odooUserId } })
-            : null;
-
-          if (action === 'create' && !existing) {
-            await this.prisma.user.create({ data });
-          } else if (action === 'update' && existing) {
-            await this.prisma.user.update({ where: { id: existing.id }, data });
-          }
-          break;
-        }
-        case 'specialist': {
-          const data = this.mapOdooSpecialist(payload);
-          const existing = await this.prisma.specialist.findFirst({
-            where: { name: data.name, veterinaryId: data.veterinaryId },
-          });
-
-          if (action === 'create' && !existing) {
-            await this.prisma.specialist.create({ data });
-          } else if (action === 'update' && existing) {
-            await this.prisma.specialist.update({ where: { id: existing.id }, data });
-          }
-          break;
-        }
-        default:
-          this.logger.warn(`Unknown entity type in webhook: ${entity}`);
-      }
+      await handler(payload, action);
     } catch (err) {
       this.logger.error(`Error handling webhook for ${entity}: ${err}`);
     }
-  }
-
-  private mapOdooVeterinary(payload: any) {
-    return {
-      odooVeterinaryId: payload.id,
-      name: payload.name,
-      tagline: payload.tagline || '',
-      phone: payload.phone || '',
-      email: payload.email || '',
-      address: payload.address || '',
-      city: payload.city || '',
-      latitude: payload.latitude || null,
-      longitude: payload.longitude || null,
-      rating: payload.rating || 0,
-      isEmergency: payload.is_emergency || false,
-      isOpen: payload.is_open !== undefined ? payload.is_open : true,
-      type: payload.type || 'clinic',
-    };
-  }
-
-  private mapOdooPet(payload: any) {
-    return {
-      odooPetId: payload.id,
-      name: payload.name,
-      species: payload.species || 'dog',
-      breed: payload.breed || '',
-      sex: payload.sex || 'unknown',
-      weight: payload.weight || 0,
-      status: payload.status || 'available',
-      description: payload.description || '',
-      veterinaryId: payload.veterinary_id,
-      sterilized: payload.sterilized || false,
-      allergies: payload.allergies || [],
-      vaccinations: payload.vaccinations || [],
-    };
-  }
-
-  private mapOdooProduct(payload: any) {
-    return {
-      odooProductId: payload.id,
-      name: payload.name,
-      description: payload.description || '',
-      price: payload.price || 0,
-      stock: payload.stock || 0,
-      category: payload.veterinary_category || 'food',
-      requiresPrescription: payload.requires_prescription || false,
-      isActive: payload.is_active !== undefined ? payload.is_active : true,
-      veterinaryId: payload.veterinary_id,
-    };
-  }
-
-  private mapOdooUser(payload: any) {
-    return {
-      odooUserId: payload.id,
-      name: payload.name,
-      email: payload.email,
-      password: crypto.randomUUID() + '_odoo_sync',
-      phone: payload.phone || '',
-      role: (payload.role || 'adopter').toUpperCase() as any,
-    };
-  }
-
-  private mapOdooSpecialist(payload: any) {
-    return {
-      name: payload.name,
-      phone: payload.phone || '',
-      email: payload.email || '',
-      licenseNumber: payload.license_number || '',
-      veterinaryId: payload.veterinary_id,
-    };
   }
 }

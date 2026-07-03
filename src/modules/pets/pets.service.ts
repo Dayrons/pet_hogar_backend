@@ -130,6 +130,54 @@ export class PetsService {
     return { success: true };
   }
 
+  async syncFromOdoo(payload: any, action: string): Promise<void> {
+    const existing = payload.id
+      ? await this.prisma.pet.findFirst({ where: { odooPetId: payload.id } })
+      : null;
+
+    const rawImages: any[] = payload.images || [];
+    const results = await Promise.all(
+      rawImages.map(async (img: any) => {
+        const localPath = await this.fileUpload.saveBase64('pets', img.image_data);
+        return localPath ? { imageUrl: localPath, sequence: img.sequence ?? 10 } : null;
+      }),
+    );
+    const images = results.filter(Boolean) as { imageUrl: string; sequence: number }[];
+
+    const data: any = {
+      odooPetId: payload.id,
+      name: payload.name,
+      species: payload.species || 'dog',
+      breed: payload.breed || '',
+      sex: payload.sex || 'unknown',
+      weight: payload.weight || 0,
+      status: payload.status || 'available',
+      description: payload.description || '',
+      veterinaryId: payload.veterinary_id,
+      sterilized: payload.sterilized || false,
+      allergies: payload.allergies || [],
+      vaccinations: payload.vaccinations || [],
+    };
+
+    let petId: number;
+    if (action === 'create' || (action === 'update' && !existing)) {
+      const created = await this.prisma.pet.upsert({ where: { id: existing?.id || 0 }, create: data, update: data });
+      petId = created.id;
+    } else if (action === 'update' && existing) {
+      await this.prisma.pet.update({ where: { id: existing.id }, data });
+      petId = existing.id;
+    } else {
+      return;
+    }
+
+    if (images.length > 0) {
+      await this.prisma.petImage.deleteMany({ where: { petId } });
+      for (const img of images) {
+        await this.prisma.petImage.create({ data: { petId, ...img } });
+      }
+    }
+  }
+
   async addImage(petId: number, url: string) {
     const maxSeq = await this.prisma.petImage.findFirst({
       where: { petId },

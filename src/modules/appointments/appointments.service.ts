@@ -1,9 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { FileUploadService } from '../../shared/services/file-upload.service';
 
 @Injectable()
 export class AppointmentsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private fileUpload: FileUploadService,
+  ) {}
 
   async findAll(query: { status?: string; veterinaryId?: string; petId?: string; fromDate?: string; toDate?: string }) {
     const where: any = {};
@@ -25,7 +29,7 @@ export class AppointmentsService {
       id: a.id,
       petId: a.petId,
       petName: a.pet.name,
-      petPhoto: a.pet.images[0]?.imageUrl || '',
+      petPhoto: this.fileUpload.getFullUrl(a.pet.images[0]?.imageUrl) || '',
       ownerName: a.pet.owner?.name || '',
       ownerPhone: a.pet.owner?.phone || '',
       veterinaryId: a.veterinaryId,

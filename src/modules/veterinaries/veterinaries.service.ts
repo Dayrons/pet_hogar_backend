@@ -218,6 +218,59 @@ export class VeterinariesService {
       .sort((a, b) => a.distanceKm - b.distanceKm);
   }
 
+  async syncFromOdoo(payload: any, action: string): Promise<void> {
+    const existing = payload.id
+      ? await this.prisma.veterinary.findFirst({ where: { odooVeterinaryId: payload.id } })
+      : null;
+
+    const [logo, coverImage] = await Promise.all([
+      this.fileUpload.saveBase64('veterinaries', payload.logo_data),
+      this.fileUpload.saveBase64('veterinaries', payload.cover_image_data),
+    ]);
+
+    const data: any = {
+      odooVeterinaryId: payload.id,
+      name: payload.name,
+      tagline: payload.tagline || '',
+      phone: payload.phone || '',
+      email: payload.email || '',
+      website: payload.website || '',
+      address: [payload.street, payload.street2].filter(Boolean).join(', '),
+      city: payload.city || '',
+      state: payload.state || '',
+      country: payload.country || '',
+      taxId: payload.vat || '',
+      latitude: payload.latitude || null,
+      longitude: payload.longitude || null,
+      rating: payload.rating || 0,
+      type: payload.clinic_type || 'clinic',
+      isEmergency: payload.is_emergency || false,
+      isHospital: payload.is_hospital || false,
+      isOpen: payload.is_open !== undefined ? payload.is_open : true,
+      isActive: payload.is_active !== undefined ? payload.is_active : true,
+      notes: payload.notes || '',
+      licenseNumber: payload.license_number || '',
+    };
+
+    if (logo) {
+      data.logo = logo;
+    } else if (!existing?.logo) {
+      data.logo = null;
+    }
+
+    if (coverImage) {
+      data.coverImage = coverImage;
+    } else if (!existing?.coverImage) {
+      data.coverImage = null;
+    }
+
+    if (action === 'create' || (action === 'update' && !existing)) {
+      await this.prisma.veterinary.upsert({ where: { id: existing?.id || 0 }, create: data, update: data });
+    } else if (action === 'update' && existing) {
+      await this.prisma.veterinary.update({ where: { id: existing.id }, data });
+    }
+  }
+
   private haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
     const R = 6371;
     const dLat = this.toRad(lat2 - lat1);

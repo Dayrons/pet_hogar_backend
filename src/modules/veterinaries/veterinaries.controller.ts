@@ -80,8 +80,8 @@ export class VeterinariesController {
     @UploadedFiles() files: { logo?: Express.Multer.File[]; cover?: Express.Multer.File[] },
     @CurrentUser() user: any,
   ) {
-    if (files?.logo?.[0]) body.logo = this.fileUpload.saveFile('veterinaries', files.logo[0]);
-    if (files?.cover?.[0]) (body as any).coverImage = this.fileUpload.saveFile('veterinaries', files.cover[0]);
+    if (files?.logo?.[0]) body.logo = await this.fileUpload.saveFile('veterinaries', files.logo[0]);
+    if (files?.cover?.[0]) (body as any).coverImage = await this.fileUpload.saveFile('veterinaries', files.cover[0]);
     return this.veterinariesService.create(body as any, user.id);
   }
 
@@ -103,12 +103,12 @@ export class VeterinariesController {
     if (files?.logo?.[0]) {
       const old = await this.veterinariesService.getField(parseInt(id), 'logo');
       if (old) this.fileUpload.deleteFile(old);
-      body.logo = this.fileUpload.saveFile('veterinaries', files.logo[0]);
+      body.logo = await this.fileUpload.saveFile('veterinaries', files.logo[0]);
     }
     if (files?.cover?.[0]) {
       const old = await this.veterinariesService.getField(parseInt(id), 'coverImage');
       if (old) this.fileUpload.deleteFile(old);
-      (body as any).coverImage = this.fileUpload.saveFile('veterinaries', files.cover[0]);
+      (body as any).coverImage = await this.fileUpload.saveFile('veterinaries', files.cover[0]);
     }
     return this.veterinariesService.update(parseInt(id), body as any);
   }

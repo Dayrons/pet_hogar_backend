@@ -7,6 +7,7 @@ import { AuthService } from './auth.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { APP_GUARD } from '@nestjs/core';
 import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
+import { FileUploadModule } from '../../shared/services/file-upload.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { JwtAuthGuard } from '../../shared/guards/jwt-auth.guard';
         signOptions: { expiresIn: configService.get<string>('JWT_EXPIRES_IN', '30d') as any },
       }),
     }),
+    FileUploadModule,
   ],
   controllers: [AuthController],
   providers: [

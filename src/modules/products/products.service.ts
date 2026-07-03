@@ -86,6 +86,45 @@ export class ProductsService {
     return { success: true };
   }
 
+  async syncFromOdoo(payload: any, action: string): Promise<void> {
+    const existing = payload.id
+      ? await this.prisma.product.findFirst({ where: { odooProductId: payload.id } })
+      : null;
+
+    const localImagePath = await this.fileUpload.saveBase64('products', payload.image_data);
+
+    const data: any = {
+      odooProductId: payload.id,
+      name: payload.name,
+      description: payload.description || '',
+      price: payload.price || 0,
+      stock: payload.stock || 0,
+      category: payload.veterinary_category || 'food',
+      requiresPrescription: payload.requires_prescription || false,
+      isActive: payload.is_active !== undefined ? payload.is_active : true,
+      veterinaryId: payload.veterinary_id,
+    };
+
+    let productId: number;
+    if (action === 'create' || (action === 'update' && !existing)) {
+      const created = await this.prisma.product.upsert({ where: { id: existing?.id || 0 }, create: data, update: data });
+      productId = created.id;
+    } else if (action === 'update' && existing) {
+      await this.prisma.product.update({ where: { id: existing.id }, data });
+      productId = existing.id;
+    } else {
+      return;
+    }
+
+    const images = localImagePath ? [{ imageUrl: localImagePath, sequence: 10 }] : [];
+    if (images.length > 0) {
+      await this.prisma.productImage.deleteMany({ where: { productId } });
+      for (const img of images) {
+        await this.prisma.productImage.create({ data: { productId, ...img } });
+      }
+    }
+  }
+
   async addImage(productId: number, relativePath: string) {
     const maxSeq = await this.prisma.productImage.findFirst({
       where: { productId },

@@ -36,7 +36,7 @@ export class UsersController {
     if (files?.photo?.[0]) {
       const old = await this.usersService.getField(user.id, 'photoUrl');
       if (old) this.fileUpload.deleteFile(old);
-      (body as any).photoUrl = this.fileUpload.saveFile('users', files.photo[0]);
+      (body as any).photoUrl = await this.fileUpload.saveFile('users', files.photo[0]);
     }
     return this.usersService.updateProfile(user.id, body);
   }

@@ -40,7 +40,7 @@ export class PetsController {
     const result = await this.petsService.create(body);
     if (files?.images?.length) {
       for (const file of files.images) {
-        const path = this.fileUpload.saveFile('pets', file);
+        const path = await this.fileUpload.saveFile('pets', file);
         await this.petsService.addImage(result.id, path);
       }
     }
@@ -60,8 +60,8 @@ export class PetsController {
     const result = await this.petsService.update(parseInt(id), body);
     if (files?.images?.length) {
       for (const file of files.images) {
-        const path = this.fileUpload.saveFile('pets', file);
-        await this.petsService.addImage(parseInt(id), `/uploads/${path}`);
+        const path = await this.fileUpload.saveFile('pets', file);
+        await this.petsService.addImage(parseInt(id), path);
       }
     }
     return result;

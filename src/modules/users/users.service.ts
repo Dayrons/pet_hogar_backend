@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FileUploadService } from '../../shared/services/file-upload.service';
@@ -34,6 +35,34 @@ export class UsersService {
       data,
     });
     return { success: true };
+  }
+
+  async syncFromOdoo(payload: any, action: string): Promise<void> {
+    const existing = payload.id
+      ? await this.prisma.user.findFirst({ where: { odooUserId: payload.id } })
+      : null;
+
+    const data: any = {
+      odooUserId: payload.id,
+      name: payload.name,
+      email: payload.email,
+      password: crypto.randomUUID() + '_odoo_sync',
+      phone: payload.phone || '',
+      role: (payload.role || 'adopter').toUpperCase() as any,
+    };
+
+    const photoUrl = await this.fileUpload.saveBase64('users', payload.photo_data);
+    if (photoUrl) {
+      data.photoUrl = photoUrl;
+    } else if (!existing?.photoUrl) {
+      data.photoUrl = null;
+    }
+
+    if (action === 'create' && !existing) {
+      await this.prisma.user.create({ data });
+    } else if (action === 'update' && existing) {
+      await this.prisma.user.update({ where: { id: existing.id }, data });
+    }
   }
 
   async getField(id: number, field: string): Promise<string | null> {

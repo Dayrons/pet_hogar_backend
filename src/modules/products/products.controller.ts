@@ -34,7 +34,7 @@ export class ProductsController {
     const result = await this.productsService.create(body);
     if (files?.images?.length) {
       for (const file of files.images) {
-        const path = this.fileUpload.saveFile('products', file);
+        const path = await this.fileUpload.saveFile('products', file);
         await this.productsService.addImage(result.id, path);
       }
     }
@@ -54,7 +54,7 @@ export class ProductsController {
     const result = await this.productsService.update(parseInt(id), body);
     if (files?.images?.length) {
       for (const file of files.images) {
-        const path = this.fileUpload.saveFile('products', file);
+        const path = await this.fileUpload.saveFile('products', file);
         await this.productsService.addImage(parseInt(id), path);
       }
     }
