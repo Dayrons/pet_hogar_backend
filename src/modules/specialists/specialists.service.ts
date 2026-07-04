@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class SpecialistsService {
@@ -27,17 +28,33 @@ export class SpecialistsService {
   }
 
   async syncFromOdoo(payload: any, action: string): Promise<void> {
+    let existing = payload.uuid
+      ? await this.prisma.specialist.findFirst({ where: { uuid: payload.uuid } })
+      : null;
+    if (!existing) {
+      existing = await this.prisma.specialist.findFirst({
+        where: { name: payload.name, veterinaryId: payload.veterinary_id },
+      });
+    }
+
+    let vet = payload.veterinary_uuid
+      ? await this.prisma.veterinary.findFirst({ where: { uuid: payload.veterinary_uuid } })
+      : null;
+    if (!vet && payload.veterinary_id) {
+      vet = await this.prisma.veterinary.findFirst({ where: { odooVeterinaryId: payload.veterinary_id } });
+    }
+    if (!vet) {
+      return;
+    }
+
     const data: any = {
+      uuid: payload.uuid || uuidv4(),
       name: payload.name,
       phone: payload.phone || '',
       email: payload.email || '',
       licenseNumber: payload.license_number || '',
-      veterinaryId: payload.veterinary_id,
+      veterinaryId: vet.id,
     };
-
-    const existing = await this.prisma.specialist.findFirst({
-      where: { name: data.name, veterinaryId: data.veterinaryId },
-    });
 
     if (action === 'create' && !existing) {
       await this.prisma.specialist.create({ data });
@@ -49,6 +66,7 @@ export class SpecialistsService {
   async create(data: any) {
     const specialist = await this.prisma.specialist.create({
       data: {
+        uuid: uuidv4(),
         name: data.name,
         phone: data.phone,
         email: data.email,

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FileUploadService } from '../../shared/services/file-upload.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class PetsService {
@@ -92,6 +93,7 @@ export class PetsService {
   async create(data: any) {
     const pet = await this.prisma.pet.create({
       data: {
+        uuid: uuidv4(),
         name: data.name,
         petType: data.petType || 'adoption',
         species: data.species || 'dog',
@@ -131,9 +133,22 @@ export class PetsService {
   }
 
   async syncFromOdoo(payload: any, action: string): Promise<void> {
-    const existing = payload.id
-      ? await this.prisma.pet.findFirst({ where: { odooPetId: payload.id } })
+    let existing = payload.uuid
+      ? await this.prisma.pet.findFirst({ where: { uuid: payload.uuid } })
       : null;
+    if (!existing && payload.id) {
+      existing = await this.prisma.pet.findFirst({ where: { odooPetId: payload.id } });
+    }
+
+    let vet = payload.veterinary_uuid
+      ? await this.prisma.veterinary.findFirst({ where: { uuid: payload.veterinary_uuid } })
+      : null;
+    if (!vet && payload.veterinary_id) {
+      vet = await this.prisma.veterinary.findFirst({ where: { odooVeterinaryId: payload.veterinary_id } });
+    }
+    if (!vet) {
+      return;
+    }
 
     const rawImages: any[] = payload.images || [];
     const results = await Promise.all(
@@ -145,6 +160,7 @@ export class PetsService {
     const images = results.filter(Boolean) as { imageUrl: string; sequence: number }[];
 
     const data: any = {
+      uuid: payload.uuid || uuidv4(),
       odooPetId: payload.id,
       name: payload.name,
       species: payload.species || 'dog',
@@ -153,7 +169,7 @@ export class PetsService {
       weight: payload.weight || 0,
       status: payload.status || 'available',
       description: payload.description || '',
-      veterinaryId: payload.veterinary_id,
+      veterinaryId: vet.id,
       sterilized: payload.sterilized || false,
       allergies: payload.allergies || [],
       vaccinations: payload.vaccinations || [],

@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FileUploadService } from '../../shared/services/file-upload.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class ProductsService {
@@ -54,6 +55,7 @@ export class ProductsService {
   async create(data: any) {
     const product = await this.prisma.product.create({
       data: {
+        uuid: uuidv4(),
         name: data.name,
         price: data.price || 0,
         costPrice: data.costPrice || 0,
@@ -87,22 +89,37 @@ export class ProductsService {
   }
 
   async syncFromOdoo(payload: any, action: string): Promise<void> {
-    const existing = payload.id
-      ? await this.prisma.product.findFirst({ where: { odooProductId: payload.id } })
+    let existing = payload.uuid
+      ? await this.prisma.product.findFirst({ where: { uuid: payload.uuid } })
       : null;
+    if (!existing && payload.id) {
+      existing = await this.prisma.product.findFirst({ where: { odooProductId: payload.id } });
+    }
+
+    let vet = payload.veterinary_uuid
+      ? await this.prisma.veterinary.findFirst({ where: { uuid: payload.veterinary_uuid } })
+      : null;
+    if (!vet && payload.veterinary_id) {
+      vet = await this.prisma.veterinary.findFirst({ where: { odooVeterinaryId: payload.veterinary_id } });
+    }
+    if (!vet) {
+      return;
+    }
 
     const localImagePath = await this.fileUpload.saveBase64('products', payload.image_data);
 
     const data: any = {
+      uuid: payload.uuid || uuidv4(),
       odooProductId: payload.id,
       name: payload.name,
       description: payload.description || '',
       price: payload.price || 0,
       stock: payload.stock || 0,
+      sku: payload.default_code || '',
       category: payload.veterinary_category || 'food',
       requiresPrescription: payload.requires_prescription || false,
       isActive: payload.is_active !== undefined ? payload.is_active : true,
-      veterinaryId: payload.veterinary_id,
+      veterinaryId: vet.id,
     };
 
     let productId: number;

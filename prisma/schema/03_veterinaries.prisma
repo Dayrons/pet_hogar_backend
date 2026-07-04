@@ -1,5 +1,6 @@
 model Veterinary {
   id               Int            @id @default(autoincrement())
+  uuid             String?        @unique
   odooVeterinaryId Int?
   name             String
   tagline          String?
@@ -18,6 +19,8 @@ model Veterinary {
   type             VeterinaryType @default(clinic)
   isEmergency      Boolean        @default(false)
   isHospital       Boolean        @default(false)
+  openingTime      Float?
+  closingTime      Float?
   isOpen           Boolean        @default(true)
   isActive         Boolean        @default(true)
   notes            String?

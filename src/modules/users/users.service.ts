@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FileUploadService } from '../../shared/services/file-upload.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UsersService {
@@ -38,11 +39,15 @@ export class UsersService {
   }
 
   async syncFromOdoo(payload: any, action: string): Promise<void> {
-    const existing = payload.id
-      ? await this.prisma.user.findFirst({ where: { odooUserId: payload.id } })
+    let existing = payload.uuid
+      ? await this.prisma.user.findFirst({ where: { uuid: payload.uuid } })
       : null;
+    if (!existing && payload.id) {
+      existing = await this.prisma.user.findFirst({ where: { odooUserId: payload.id } });
+    }
 
     const data: any = {
+      uuid: payload.uuid || uuidv4(),
       odooUserId: payload.id,
       name: payload.name,
       email: payload.email,

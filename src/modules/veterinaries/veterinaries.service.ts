@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FileUploadService } from '../../shared/services/file-upload.service';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class VeterinariesService {
@@ -78,6 +79,8 @@ export class VeterinariesService {
       isEmergency: v.isEmergency,
       isHospital: v.isHospital,
       isOpen: v.isOpen,
+      openingTime: v.openingTime,
+      closingTime: v.closingTime,
       services: v.services.map((s) => s.name),
       schedule: scheduleMap,
       socialLinks: v.socialLinks.map((l) => l.url),
@@ -91,6 +94,7 @@ export class VeterinariesService {
   async create(data: any, userId: number) {
     const vet = await this.prisma.veterinary.create({
       data: {
+        uuid: uuidv4(),
         name: data.name,
         tagline: data.tagline,
         phone: data.phone,
@@ -212,16 +216,24 @@ export class VeterinariesService {
     return vets
       .map((v) => {
         const distance = this.haversine(lat, lng, v.latitude!, v.longitude!);
-        return { ...v, distanceKm: Math.round(distance * 10) / 10 };
+        return {
+          ...v,
+          distanceKm: Math.round(distance * 10) / 10,
+          photoUrl: this.fileUpload.getFullUrl(v.logo) || '',
+          coverUrl: this.fileUpload.getFullUrl(v.coverImage) || '',
+        };
       })
       .filter((v) => v.distanceKm <= radius)
       .sort((a, b) => a.distanceKm - b.distanceKm);
   }
 
   async syncFromOdoo(payload: any, action: string): Promise<void> {
-    const existing = payload.id
-      ? await this.prisma.veterinary.findFirst({ where: { odooVeterinaryId: payload.id } })
+    let existing = payload.uuid
+      ? await this.prisma.veterinary.findFirst({ where: { uuid: payload.uuid } })
       : null;
+    if (!existing && payload.id) {
+      existing = await this.prisma.veterinary.findFirst({ where: { odooVeterinaryId: payload.id } });
+    }
 
     const [logo, coverImage] = await Promise.all([
       this.fileUpload.saveBase64('veterinaries', payload.logo_data),
@@ -229,6 +241,7 @@ export class VeterinariesService {
     ]);
 
     const data: any = {
+      uuid: payload.uuid || uuidv4(),
       odooVeterinaryId: payload.id,
       name: payload.name,
       tagline: payload.tagline || '',
@@ -246,6 +259,8 @@ export class VeterinariesService {
       type: payload.clinic_type || 'clinic',
       isEmergency: payload.is_emergency || false,
       isHospital: payload.is_hospital || false,
+      openingTime: payload.opening_time !== undefined ? payload.opening_time : null,
+      closingTime: payload.closing_time !== undefined ? payload.closing_time : null,
       isOpen: payload.is_open !== undefined ? payload.is_open : true,
       isActive: payload.is_active !== undefined ? payload.is_active : true,
       notes: payload.notes || '',
@@ -264,10 +279,28 @@ export class VeterinariesService {
       data.coverImage = null;
     }
 
+    let veterinaryId = existing?.id || 0;
     if (action === 'create' || (action === 'update' && !existing)) {
-      await this.prisma.veterinary.upsert({ where: { id: existing?.id || 0 }, create: data, update: data });
+      const created = await this.prisma.veterinary.upsert({ where: { id: existing?.id || 0 }, create: data, update: data });
+      veterinaryId = created.id;
     } else if (action === 'update' && existing) {
       await this.prisma.veterinary.update({ where: { id: existing.id }, data });
+      veterinaryId = existing.id;
+    }
+
+    if (payload.schedules && veterinaryId) {
+      await this.prisma.schedule.deleteMany({ where: { veterinaryId } });
+      for (const s of payload.schedules) {
+        await this.prisma.schedule.create({
+          data: {
+            veterinaryId,
+            dayOfWeek: s.day_of_week,
+            openTime: s.open_time || '08:00',
+            closeTime: s.close_time || '17:00',
+            isClosed: s.is_closed || false,
+          },
+        });
+      }
     }
   }
 

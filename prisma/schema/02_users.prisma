@@ -1,7 +1,8 @@
 model User {
-  id             Int       @id @default(autoincrement())
-  odooUserId     Int?
-  name           String
+  id           Int       @id @default(autoincrement())
+  uuid         String?   @unique
+  odooUserId   Int?
+  name         String
   email          String    @unique
   password       String
   phone          String?

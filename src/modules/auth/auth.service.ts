@@ -3,6 +3,7 @@ import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../prisma/prisma.service';
 import { FileUploadService } from '../../shared/services/file-upload.service';
+import { v4 as uuidv4 } from 'uuid';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
@@ -33,13 +34,16 @@ export class AuthService {
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
 
+    const role = dto.role === 'vet_admin' ? 'VET_ADMIN' : 'ADOPTER';
+
     const user = await this.prisma.user.create({
       data: {
+        uuid: uuidv4(),
         name: dto.name,
         email: dto.email,
         password: hashedPassword,
         phone: dto.phone,
-        role: 'ADOPTER',
+        role,
       },
     });
 

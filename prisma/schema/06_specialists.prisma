@@ -10,9 +10,10 @@ model Specialty {
 }
 
 model Specialist {
-  id               Int    @id @default(autoincrement())
-  veterinaryUserId Int?   @unique
-  name             String
+  id                Int                    @id @default(autoincrement())
+  uuid              String?                @unique
+  veterinaryUserId  Int?                   @unique
+  name              String
   phone            String?
   email            String?
   licenseNumber    String?

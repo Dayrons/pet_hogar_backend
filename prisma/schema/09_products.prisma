@@ -1,5 +1,6 @@
 model Product {
   id                  Int              @id @default(autoincrement())
+  uuid                String?          @unique
   odooProductId       Int?
   name                String
   description         String?

@@ -1,7 +1,8 @@
 model Pet {
-  id            Int       @id @default(autoincrement())
-  odooPetId     Int?
-  name          String
+  id          Int       @id @default(autoincrement())
+  uuid        String?   @unique
+  odooPetId   Int?
+  name        String
   petType       PetType   @default(adoption)
   species       Species   @default(dog)
   breed         String?
